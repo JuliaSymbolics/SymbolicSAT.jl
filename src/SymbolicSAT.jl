@@ -15,11 +15,14 @@ function to_z3(term::Term, ctx)
     args = arguments(term)
 
     # weird special case
-    if length(args) == 1 && (op == (!) || op == (~))
-        not(to_z3(args[1], ctx))
-    else
-        op(map(x->to_z3(x, ctx), args)...)
+    if length(args) == 1 && (op === (!) || op === (~))
+        op = not
+    elseif op === (&)
+        op = and
+    elseif op === (|)
+        op = or
     end
+    op(map(x->to_z3(x, ctx), args)...)
 end
 
 for (jlt, z3t) in [Integer => :int, Real => :real]
@@ -57,7 +60,7 @@ function issatisfiable(expr::Symbolic{Bool}, cs::Constraints)
     Z3.push(cs.solver)
     add(cs.solver, to_z3(expr, cs.context))
     res = check(cs.solver)
-    Z3.pop(cs.solver,0)
+    Z3.pop(cs.solver,1)
     if res == Z3.sat
         return true
     elseif res == Z3.unsat
