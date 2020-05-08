@@ -1,7 +1,7 @@
 module SymbolicSAT
 
 using SymbolicUtils
-using SymbolicUtils: Sym, Term, operation, arguments, Symbolic
+using SymbolicUtils: Sym, Term, operation, arguments, Symbolic, symtype
 using Z3
 
 export Constraints, issatisfiable, isprovable
@@ -54,10 +54,10 @@ function Base.show(io::IO, c::Constraints)
 end
 
 function issatisfiable(expr::Symbolic{Bool}, cs::Constraints)
-    Z3.push(cs.solver, 1)
+    Z3.push(cs.solver)
     add(cs.solver, to_z3(expr, cs.context))
     res = check(cs.solver)
-    Z3.pop(cs.solver,1)
+    Z3.pop(cs.solver,0)
     if res == Z3.sat
         return true
     elseif res == Z3.unsat
@@ -73,5 +73,11 @@ function isprovable(expr, cs::Constraints)
 end
 
 issatisfiable(expr::Bool, Constraints) = expr
+
+isbool(x) = symtype(x) == Bool
+
+SymbolicUtils.default_rules(expr, c::Constraints) = RuleSet([
+    @rule ~x::isbool => isprovable(~x, (@ctx)) === true ? true : ~x
+])
 
 end # module
