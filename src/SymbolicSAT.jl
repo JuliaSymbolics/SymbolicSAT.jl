@@ -4,34 +4,9 @@ using SymbolicUtils
 using SymbolicUtils: Sym, Term, operation, arguments, Symbolic
 using Z3
 
-export Constraints, cond
-
-## Booleans
-
-import Base: ==, !=, <=, >=, <, >, &, |, xor
-
-# binary ops that return Bool
-for (f, Domain) in [(==) => Number, (!=) => Number,
-                    (<=) => Real,   (>=) => Real,
-                    (< ) => Real,   (> ) => Real,
-                    (& ) => Bool,   (| ) => Bool,
-                    xor => Bool]
-    @eval begin
-        promote_symtype(::$(typeof(f)), ::Type{<:$Domain}, ::Type{<:$Domain}) = Bool
-        (::$(typeof(f)))(a::Symbolic{<:$Domain}, b::$Domain) = term($f, a, b, type=Bool)
-        (::$(typeof(f)))(a::Symbolic{<:$Domain}, b::Symbolic{<:$Domain}) = term($f, a, b, type=Bool)
-        (::$(typeof(f)))(a::$Domain, b::Symbolic{<:$Domain}) = term($f, [a, b], type=Bool)
-    end
-end
-
-Base.:!(s::Symbolic{Bool}) = Term{Bool}(!, [s])
-Base.:~(s::Symbolic{Bool}) = Term{Bool}(~, [s])
-
-cond(_if, _then, _else) = Term{Union{symtype(_then), symtype(_else)}}(cond, Any[_if, _then, _else])
+export Constraints, issatisfiable, isprovable
 
 # Symutils -> Z3
-
-export issatisfiable
 
 to_z3(x, ctx) = x
 to_z3(x::Symbolic, ctx) = error("could not convert $x to a z3 expression restrict types of variables to Real or its subtypes")
@@ -68,7 +43,6 @@ struct Constraints
     end
 end
 
-
 function Base.show(io::IO, c::Constraints)
     cs = c.constraints
     println("Constraints:")
@@ -80,11 +54,22 @@ function Base.show(io::IO, c::Constraints)
 end
 
 function issatisfiable(expr::Symbolic{Bool}, cs::Constraints)
-    Z3.push(cs.solver)
+    Z3.push(cs.solver, 1)
     add(cs.solver, to_z3(expr, cs.context))
     res = check(cs.solver)
     Z3.pop(cs.solver,1)
-    res == Z3.sat
+    if res == Z3.sat
+        return true
+    elseif res == Z3.unsat
+        return false
+    elseif res == Z3.unknown
+        return nothing
+    end
+end
+
+function isprovable(expr, cs::Constraints)
+    sat = issatisfiable(expr, cs)
+    sat === true ? !issatisfiable(!expr, cs) : sat
 end
 
 issatisfiable(expr::Bool, Constraints) = expr
