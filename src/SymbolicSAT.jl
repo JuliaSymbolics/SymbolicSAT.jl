@@ -72,7 +72,7 @@ end
 
 function isprovable(expr, cs::Constraints)
     sat = issatisfiable(expr, cs)
-    sat === true ? !issatisfiable(!expr, cs) : sat
+    sat === true ? !issatisfiable(!expr, cs) : false
 end
 
 issatisfiable(expr::Bool, Constraints) = expr
@@ -80,8 +80,8 @@ issatisfiable(expr::Bool, Constraints) = expr
 isbool(x) = symtype(x) == Bool
 
 SymbolicUtils.default_rules(expr, c::Constraints) = RuleSet([
-     @rule ~x => simplify(~x)
      @rule ~x::isbool => isprovable(~x, (@ctx)) === true ? true : ~x
+     @rule ~x => SymbolicUtils.SIMPLIFY_RULES(~x)
 ])
 
 end # module
