@@ -77,11 +77,18 @@ end
 
 issatisfiable(expr::Bool, Constraints) = expr
 
-isbool(x) = symtype(x) == Bool
+boolsym(x::Symbolic) = symtype(x) == Bool
+boolsym(x) = false
+
+function resolve(x, ctx)
+     isprovable(x, ctx) === true ?
+        true : isprovable(!(x), ctx) === true ? false : x
+end
 
 SymbolicUtils.default_rules(expr, c::Constraints) = RuleSet([
-     @rule ~x::isbool => isprovable(~x, (@ctx)) === true ? true : ~x
-     @rule ~x => SymbolicUtils.SIMPLIFY_RULES(~x)
+     @rule ~x => SymbolicUtils.BOOLEAN_RULES(~x) # needed to get it to simplify true | true etc
+     @rule ~x::boolsym => resolve(~x, (@ctx))
+     @rule ~x => SymbolicUtils.BOOLEAN_RULES(~x)
 ])
 
 end # module
