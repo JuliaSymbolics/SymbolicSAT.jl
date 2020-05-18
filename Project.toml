@@ -2,3 +2,7 @@ name = "SymbolicSAT"
 uuid = "a0d8a0e1-65bc-4be1-9afb-79a704359442"
 authors = ["Shashi Gowda <shashigowda91@gmail.com>"]
 version = "0.1.0"
+
+[deps]
+SymbolicUtils = "d1185830-fcd6-423d-90d6-eec64667417b"
+Z3 = "06b161dc-0161-11ea-0f74-41f836f4024b"
