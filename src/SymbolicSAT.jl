@@ -1,28 +1,35 @@
 module SymbolicSAT
 
 using SymbolicUtils
-using SymbolicUtils: Sym, Term, operation, arguments, Symbolic, symtype
+using SymbolicUtils: Sym, Term, operation, arguments, Symbolic, symtype, istree
 using Z3
 
 export Constraints, issatisfiable, isprovable
 
 # Symutils -> Z3
 
-to_z3(x, ctx) = x
-to_z3(x::Symbolic, ctx) = error("could not convert $x to a z3 expression restrict types of variables to Real or its subtypes")
-function to_z3(term::Term, ctx)
-    op = operation(term)
-    args = arguments(term)
+function to_z3(term, ctx)
+    if istree(term)
+        op = operation(term)
+        args = arguments(term)
 
-    # weird special case
-    if length(args) == 1 && (op === (!) || op === (~))
-        op = not
-    elseif op === (&)
-        op = and
-    elseif op === (|)
-        op = or
+        # weird special case
+        if length(args) == 1 && (op === (!) || op === (~))
+            op = not
+        elseif op === (&)
+            op = and
+        elseif op === (|)
+            op = or
+        end
+        args′ = map(x->to_z3(x, ctx), args)
+        s = findfirst(x->x isa Symbolic, args′)
+        if s !== nothing
+            error("$s of symtype $(symtype(s)) was not converted into a z3 expression")
+        end
+        op(args′...)
+    else
+        term
     end
-    op(map(x->to_z3(x, ctx), args)...)
 end
 
 for (jlt, z3t) in [Integer => :int, Real => :real]
@@ -84,11 +91,5 @@ function resolve(x, ctx)
      isprovable(x, ctx) === true ?
         true : isprovable(!(x), ctx) === true ? false : x
 end
-
-SymbolicUtils.default_rules(expr, c::Constraints) = RuleSet([
-     @rule ~x => SymbolicUtils.BOOLEAN_RULES(~x) # needed to get it to simplify true | true etc
-     @rule ~x::boolsym => resolve(~x, (@ctx))
-     @rule ~x => SymbolicUtils.BOOLEAN_RULES(~x)
-])
 
 end # module
